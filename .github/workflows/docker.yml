@@ -1,0 +1,27 @@
+name: CI - Docker WordPress
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Verificar docker-compose.yml
+        run: docker-compose config
+
+      - name: Subir containers (teste de build)
+        run: docker-compose up -d --build
+
+      - name: Verificar containers
+        run: docker ps
+
+      - name: Derrubar containers
+        run: docker-compose down

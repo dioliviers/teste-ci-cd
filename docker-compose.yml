@@ -1,0 +1,97 @@
+version: '3.7'
+
+services:
+  # Serviço MySQL
+  db:
+    image: mysql:5.7
+    container_name: mysql-container
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - wordpress_network
+
+  # Serviço WordPress
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress-container
+    depends_on:
+      - db
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: user
+      WORDPRESS_DB_PASSWORD: password
+    ports:
+      - "8080:80"
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wp-content:/var/www/html/wp-content
+
+    networks:
+      - wordpress_network
+
+  # Serviço Nginx
+  nginx:
+    image: nginx:latest
+    container_name: nginx-container
+    depends_on:
+      - wordpress
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - wordpress_data:/var/www/html
+    networks:
+      - wordpress_network
+
+  # Serviço Watcher (para monitorar mudanças no código, como um live-reload)
+  watcher:
+    image: node:14
+    container_name: watcher-container
+    volumes:
+      - ./src:/app
+    working_dir: /app
+    command: npm run watch # ou outro comando de sua escolha para monitorar arquivos
+    networks:
+      - wordpress_network
+  name: Docker Compose
+
+on:
+  push:
+    branches:
+      - main  # ou 'master', conforme seu repositório
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no DockerHub (opcional, se for publicar imagem)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Subir containers com Docker Compose
+        run: |
+          docker-compose up -d --build
+
+volumes:
+  db_data:
+  wordpress_data:
+
+networks:
+  wordpress_network:
+    driver: bridge
+
